@@ -43,7 +43,7 @@ Faqat quyidagi obyektli JSON qaytar:
 Mazmun: 1-slid kuchli hook, 2-slayd aniq xatar/fakt, 3-slayd amaliy tavsiya.
 Imloni to'g'ri yoz; noaniq va asossiz raqamlardan qoch.
 """
-    data = gemini("gemini-2.5-flash", {
+    data = gemini("gemini-3.8-flash", {
         "contents":[{"parts":[{"text":prompt}]}],
         "generationConfig":{"responseMimeType":"application/json","temperature":0.6}
     })
@@ -104,7 +104,7 @@ def make_voice(text):
     instruction=("Read the following Uzbek text naturally and clearly, in a calm, "
                  "warm, mature masculine narrator voice. No music, no sound effects. "
                  "Measured, professional pace:\n"+text)
-    data=gemini("gemini-2.5-flash-preview-tts", {
+    data=gemini("gemini-3.8-flash-tts", {
         "contents":[{"parts":[{"text":instruction}]}],
         "generationConfig":{"responseModalities":["AUDIO"],
            "speechConfig":{"voiceConfig":{"prebuiltVoiceConfig":{"voiceName":"Gacrux"}}}}
