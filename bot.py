@@ -22,12 +22,29 @@ TOPICS = [
  "Mualliflik va AI", "AI xizmatlari maxfiylik sozlamalari",
 ]
 def gemini(model, body):
-    r = requests.post(API + model + ":generateContent",
-        headers={"x-goog-api-key": KEY, "Content-Type": "application/json"},
-        json=body, timeout=110)
-    if not r.ok:
-        raise RuntimeError("Gemini API HTTP %s: %s" % (r.status_code, r.text[:450]))
-    return r.json()
+    import time, random
+    retryable = {429, 500, 502, 503, 504}
+    waits = [0, 5, 12, 25, 45]
+    for attempt, delay in enumerate(waits):
+        if delay:
+            pause = delay + random.uniform(0, 2)
+            print("Gemini temporarily unavailable; retry %d/%d after %.1fs" %
+                  (attempt, len(waits) - 1, pause), flush=True)
+            time.sleep(pause)
+        try:
+            r = requests.post(API + model + ":generateContent",
+                headers={"x-goog-api-key": KEY, "Content-Type": "application/json"},
+                json=body, timeout=110)
+        except (requests.Timeout, requests.ConnectionError) as exc:
+            if attempt == len(waits) - 1:
+                raise RuntimeError("Gemini connection failed after retries") from exc
+            continue
+        if r.ok:
+            return r.json()
+        if r.status_code not in retryable or attempt == len(waits) - 1:
+            raise RuntimeError("Gemini API HTTP %s: %s" % (r.status_code, r.text[:450]))
+        print("Gemini API HTTP %s. Retrying." % r.status_code, flush=True)
+    raise RuntimeError("Gemini request failed")
 
 def editorial():
     topic = TOPICS[(TODAY.toordinal() - datetime.date(2026, 1, 1).toordinal()) % len(TOPICS)]
