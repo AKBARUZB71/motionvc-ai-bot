@@ -101,13 +101,13 @@ def make_slide(item, n):
     return path
 
 def make_voice(text):
-    instruction=("Read the following Uzbek text naturally and clearly, in a calm, "
-                 "warm, mature masculine narrator voice. No music, no sound effects. "
-                 "Measured, professional pace:\n"+text)
     data=gemini("gemini-3.8-flash-tts", {
-        "contents":[{"parts":[{"text":instruction}]}],
+        "contents":[{"role":"user","parts":[{
+            "text":text,
+            "speech_metadata":{"style":"Clear, calm and professional Uzbek narration; measured pace, warm and confident tone, no music."}
+        }]}],
         "generationConfig":{"responseModalities":["AUDIO"],
-           "speechConfig":{"voiceConfig":{"prebuiltVoiceConfig":{"voiceName":"Gacrux"}}}}
+           "speechConfig":{"voiceConfig":{"voice":"Gacrux"}}}
     })
     parts=data["candidates"][0]["content"]["parts"]
     inline=next((part.get("inlineData") or part.get("inline_data")
