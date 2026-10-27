@@ -1,0 +1,29 @@
+name: MOTIONVC daily carousel
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 3 * * *' # 08:00 Asia/Tashkent = 03:00 UTC
+permissions:
+  contents: read
+concurrency:
+  group: motionvc-publisher
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '7.4'
+          extensions: curl, gd, mbstring
+          coverage: none
+      - name: Install typography and voice tools
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq fonts-dejavu-core ffmpeg
+      - name: Generate and publish
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: '@motionvc'
+        run: php index.php
