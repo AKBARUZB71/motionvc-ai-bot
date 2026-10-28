@@ -23,28 +23,30 @@ TOPICS = [
 ]
 def gemini(model, body):
     import time, random
-    retryable = {429, 500, 502, 503, 504}
-    waits = [0, 5, 12, 25, 45]
-    for attempt, delay in enumerate(waits):
-        if delay:
-            pause = delay + random.uniform(0, 2)
-            print("Gemini temporarily unavailable; retry %d/%d after %.1fs" %
-                  (attempt, len(waits) - 1, pause), flush=True)
-            time.sleep(pause)
-        try:
-            r = requests.post(API + model + ":generateContent",
-                headers={"x-goog-api-key": KEY, "Content-Type": "application/json"},
-                json=body, timeout=110)
-        except (requests.Timeout, requests.ConnectionError) as exc:
-            if attempt == len(waits) - 1:
-                raise RuntimeError("Gemini connection failed after retries") from exc
-            continue
-        if r.ok:
-            return r.json()
-        if r.status_code not in retryable or attempt == len(waits) - 1:
-            raise RuntimeError("Gemini API HTTP %s: %s" % (r.status_code, r.text[:450]))
-        print("Gemini API HTTP %s. Retrying." % r.status_code, flush=True)
-    raise RuntimeError("Gemini request failed")
+    # A slow/unavailable model must not consume the whole scheduled job.
+    models = [model]
+    if model == "gemini-3.8-flash":
+        models += ["gemini-3-flash-preview"]
+    for current_model in models:
+        for attempt in range(2):
+            try:
+                r = requests.post(API + current_model + ":generateContent",
+                    headers={"x-goog-api-key": KEY, "Content-Type": "application/json"},
+                    json=body, timeout=(8, 25))
+            except (requests.Timeout, requests.ConnectionError):
+                print("Gemini timeout/connection error on "+current_model, flush=True)
+                if attempt == 0:
+                    time.sleep(3)
+                    continue
+                break
+            if r.ok:
+                return r.json()
+            print("Gemini "+current_model+" HTTP "+str(r.status_code),flush=True)
+            if r.status_code not in (429, 500, 502, 503, 504):
+                raise RuntimeError("Gemini API HTTP %s: %s" % (r.status_code, r.text[:350]))
+            if attempt == 0:
+                time.sleep(3 + random.uniform(0, 1))
+    raise RuntimeError("Gemini API temporarily unavailable after bounded retries")
 
 def editorial():
     topic = TOPICS[(TODAY.toordinal() - datetime.date(2026, 1, 1).toordinal()) % len(TOPICS)]
